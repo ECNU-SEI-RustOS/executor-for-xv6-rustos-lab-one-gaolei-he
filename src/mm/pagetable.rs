@@ -1,6 +1,7 @@
 use array_macro::array;
 
 use alloc::boxed::Box;
+use alloc::string::String;
 use core::{cmp::min, convert::TryFrom};
 use core::ptr;
 
@@ -786,6 +787,39 @@ impl PageTable {
         }
 
         Err("copy_in_str: dst not enough space")
+    }
+
+    /// Recursively print valid PTEs in the page table with indentation per level.
+    pub fn vm_print(&self, level: usize) {
+        if level == 0 {
+            println!("page table {:#x}", self as *const _ as usize);
+        }
+
+        for (idx, pte) in self.data.iter().enumerate() {
+            if !pte.is_valid() {
+                continue;
+            }
+
+            let mut indent = String::new();
+            for i in 0..level {
+                if i > 0 {
+                    indent.push(' ');
+                }
+                indent.push_str("..");
+            }
+
+            let pa = pte.as_phys_addr().as_usize();
+            println!("{}{}: pte {:#x} pa {:#x}", indent, idx, pte.data, pa);
+
+            if !pte.is_leaf() {
+                unsafe {
+                    pte.as_page_table()
+                        .as_ref()
+                        .unwrap()
+                        .vm_print(level + 1);
+                }
+            }
+        }
     }
 
     /// # 功能说明
