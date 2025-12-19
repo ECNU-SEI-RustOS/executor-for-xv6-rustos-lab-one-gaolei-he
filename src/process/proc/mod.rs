@@ -59,6 +59,8 @@ pub struct ProcExcl {
     pub channel: usize,
     /// 进程的唯一标识符（进程ID）。
     pub pid: usize,
+    /// System call trace bitmask inherited by children.
+    pub trace_mask: u32,
 }
 
 
@@ -69,6 +71,7 @@ impl ProcExcl {
             exit_status: 0,
             channel: 0,
             pid: 0,
+            trace_mask: 0,
         }
     }
 
@@ -77,6 +80,7 @@ impl ProcExcl {
         self.pid = 0;
         self.channel = 0;
         self.exit_status = 0;
+        self.trace_mask = 0;
         self.state = ProcState::UNUSED;
     }
 }
@@ -520,6 +524,7 @@ impl Proc {
             19 => self.sys_link(),
             20 => self.sys_mkdir(),
             21 => self.sys_close(),
+            22 => self.sys_trace(),
             _ => {
                 panic!("unknown syscall num: {}", a7);
             }
@@ -662,6 +667,10 @@ impl Proc {
     /// - 子进程资源清理确保不产生内存泄漏和悬挂指针。
     fn fork(&mut self) -> Result<usize, ()> {
         let pdata = self.data.get_mut();
+        let parent_trace_mask = {
+            let guard = self.excl.lock();
+            guard.trace_mask
+        };
         let child = unsafe { PROC_MANAGER.alloc_proc().ok_or(())? };
         let mut cexcl = child.excl.lock();
         let cdata = unsafe { child.data.get().as_mut().unwrap() };
@@ -690,6 +699,8 @@ impl Proc {
         
         // copy process name
         cdata.name.copy_from_slice(&pdata.name);
+
+        cexcl.trace_mask = parent_trace_mask;
 
         let cpid = cexcl.pid;
 

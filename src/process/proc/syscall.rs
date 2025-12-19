@@ -32,6 +32,7 @@ pub trait Syscall {
     fn sys_sbrk(&mut self) -> SysResult;
     fn sys_sleep(&mut self) -> SysResult;
     fn sys_uptime(&mut self) -> SysResult;
+    fn sys_trace(&mut self) -> SysResult;
     fn sys_open(&mut self) -> SysResult;
     fn sys_write(&mut self) -> SysResult;
     fn sys_mknod(&mut self) -> SysResult;
@@ -307,6 +308,14 @@ impl Syscall for Proc {
         println!("[{}].uptime() = {}", self.excl.lock().pid, ret);
 
         Ok(ret)
+    }
+
+    /// Set syscall trace bitmask on current process.
+    fn sys_trace(&mut self) -> SysResult {
+        let mask = self.arg_i32(0) as u32;
+        let mut guard = self.excl.lock();
+        guard.trace_mask = mask;
+        Ok(0)
     }
 
     /// Open and optionally create a file.
