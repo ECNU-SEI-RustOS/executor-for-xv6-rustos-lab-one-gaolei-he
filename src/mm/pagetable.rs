@@ -800,13 +800,7 @@ impl PageTable {
                 continue;
             }
 
-            let mut indent = String::new();
-            for i in 0..level {
-                if i > 0 {
-                    indent.push(' ');
-                }
-                indent.push_str("..");
-            }
+            let indent = " ..".repeat(level + 1);
 
             let pa = pte.as_phys_addr().as_usize();
             println!("{}{}: pte {:#x} pa {:#x}", indent, idx, pte.data, pa);
