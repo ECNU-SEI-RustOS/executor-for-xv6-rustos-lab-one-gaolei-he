@@ -22,6 +22,32 @@ use super::{fork_ret, Context, TrapFrame};
 
 use self::syscall::Syscall;
 
+const SYSCALL_NAMES: [&str; 23] = [
+    "",
+    "fork",
+    "exit",
+    "wait",
+    "pipe",
+    "read",
+    "kill",
+    "exec",
+    "fstat",
+    "chdir",
+    "dup",
+    "getpid",
+    "sbrk",
+    "sleep",
+    "uptime",
+    "open",
+    "write",
+    "mknod",
+    "unlink",
+    "link",
+    "mkdir",
+    "close",
+    "trace",
+];
+
 mod syscall;
 mod elf;
 
@@ -529,10 +555,22 @@ impl Proc {
                 panic!("unknown syscall num: {}", a7);
             }
         };
-        tf.a0 = match sys_result {
-            Ok(ret) => ret,
-            Err(()) => -1isize as usize,
+        let ret_val: isize = match sys_result {
+            Ok(ret) => ret as isize,
+            Err(()) => -1,
         };
+
+        if a7 < SYSCALL_NAMES.len() {
+            let (pid, mask) = {
+                let guard = self.excl.lock();
+                (guard.pid, guard.trace_mask)
+            };
+            if (mask & (1u32 << a7)) != 0 {
+                println!("{}: syscall {} -> {}", pid, SYSCALL_NAMES[a7], ret_val);
+            }
+        }
+
+        tf.a0 = ret_val as usize;
     }
 
     /// # 功能说明
